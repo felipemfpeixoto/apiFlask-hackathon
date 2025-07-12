@@ -1,7 +1,12 @@
 import time
 from google import genai
 from dotenv import load_dotenv
+from rag_functions.pinecone_functions import query_db
 import os
+import json
+
+with open("app\data\law_descriptions_bonitinho.json", "r") as file:
+    law_descriptions = json.load(file)
 
 load_dotenv()
 
@@ -29,7 +34,16 @@ def extrair_placa():
         model="gemini-2.5-flash",
         contents=["Gere uma descrição do que aconteceu no vídeo. Leve em conta os detalhes, como de que forma a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), e outros detalhes que possam ser importantes. Me de também a placa e modelo dos veículos identificados", video_file]
     )
+    
+    nodes = query_db(
+        query=response.text,
+        index_name="codigo-transito-brasileiro",
+        top_k=1
+    )
 
-    print(response.text)
+    referencia_juridica = nodes[0].metadata['path']
+    
+    ticket = law_descriptions[referencia_juridica]
+    
 
     return response.text
