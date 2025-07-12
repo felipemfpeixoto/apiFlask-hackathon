@@ -2,6 +2,16 @@ import os
 import time
 from google import genai
 from openai import OpenAI
+from dotenv import load_dotenv
+from rag_functions.pinecone_functions import query_db
+import os
+import json
+
+with open("app\data\law_descriptions_bonitinho.json", "r") as file:
+    law_descriptions = json.load(file)
+
+load_dotenv()
+
 
 def extrair_placa(mocked: bool = True):
     # Google Gemini API Key
@@ -115,10 +125,25 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
             temperature=0.3
         )
 
-        return response.choices[0].message.content
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=["Gere uma descrição do que aconteceu no vídeo. Leve em conta os detalhes, como de que forma a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), e outros detalhes que possam ser importantes. Me de também a placa e modelo dos veículos identificados", video_file]
+        )
+
+        nodes = query_db(
+            query=response.choices[0].message.content,
+            index_name="codigo-transito-brasileiro",
+            top_k=1
+        )
+
+        law_reference = nodes[0].metadata['path']
+
+        ticket = law_descriptions[law_reference]
+
+        return {"analysis": response.choices[0].message.content, "ticket": ticket, "law-reference": law_reference}
     else:
         print("Entrou no mock")
         resposta_mock = """"
             [ { "Placa": "PCF 9041", "Modelo": "Toyota Corolla (geração 2014-2019)", "Cor": "Prata", "Comportamento observado": "Tentativa de ultrapassagem em local proibido, invadindo a faixa de sentido contrário e realizando manobra evasiva perigosa.", "Possível infração": "sim" } ]
         """
-        return resposta_mock
+        return {resposta_mock, "ticket": None, "law-reference": law_reference}
