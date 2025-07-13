@@ -1,15 +1,14 @@
 import os
+import json
 import time
 from google import genai
 from openai import OpenAI
 from dotenv import load_dotenv
+
 from rag_functions.pinecone_functions import query_db
-import os
-import json
+from deepfake_functions.deepfake import detect_deepfake_video
 from app.controllers._utils import get_json_from_string
-# without os.path.join
-# with open("app\data\law_descriptions_bonitinho.json", "r") as file:
-# with os.path.join
+
 with open(os.path.join("app", "data", "law_descriptions_bonitinho.json"), "r", encoding="utf8") as file:
     law_descriptions = json.load(file)
 
@@ -36,6 +35,10 @@ def extrair_placa(mocked: bool = True, video_path: str = None):
         # Upload do vídeo
         video_file = client.files.upload(file=video_path)
         file_name = video_file.name
+        
+        if detect_deepfake_video(video_path) == "Fake":
+            print("⚠️ Vídeo detectado como Deepfake. Análise não realizada.")
+            return {"status": "error", "message": "Vídeo detectado como Deepfake."}
 
         # Aguarda processamento
         while video_file.state.name == "PROCESSING":
