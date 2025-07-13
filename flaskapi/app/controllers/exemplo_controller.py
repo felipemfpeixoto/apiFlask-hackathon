@@ -74,7 +74,8 @@ def raiz_requisicao():
         "videoURL": video_url,
         "date": date,
         "location": location,
-        "infracao": final_output[0]
+        "infracao": final_output[0],
+        "status": "pendente"
     }
 
     salvar_envio_no_firestore(dados_envio=intancia_banco)

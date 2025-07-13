@@ -63,7 +63,7 @@ def extrair_placa(mocked: bool = True, video_path: str = None):
 
     print("\n\n***************************************************************\n\n")
 
-    structured_output = interpretar_com_gpt(gemini_text=gemini_text)
+    structured_output = interpretar_com_gpt(gemini_text=gemini_text, mock=False)
     
     final_output = add_law_references(structured_output)
 
@@ -124,9 +124,9 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
             "- Modelo:\n"
             "- Cor:\n"
             "- Comportamento observado:\n"
-            "- Possível infração (sim/não):\n\n"
+            "- Possível infração: (sim/não)\n\n"
             "Se houver múltiplos veículos, repita essa estrutura apenas para veículos que possuem possíveis infrações."
-            "Me retorne APENAS o json sem os caracteres de markdown, pois estou integrando a saída diretamente em minha API!!!"
+            "Me retorne APENAS o a lista com os elementos json dentro, SEM os caracteres de markdown, e com as chaves dos itens EXATAMENTE como estao escritas acima, pois estou integrando a saída diretamente em minha API!!!"
         )
 
         response = client.chat.completions.create(
@@ -136,11 +136,6 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
                 {"role": "user", "content": prompt}
             ],
             temperature=0.3
-        )
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=["Gere uma descrição do que aconteceu no vídeo. Leve em conta os detalhes, como de que forma a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), e outros detalhes que possam ser importantes. Me de também a placa e modelo dos veículos identificados", video_file]
         )
         
         json_response = get_json_from_string(response.choices[0].message.content.strip())
@@ -152,6 +147,11 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
         """
 
         json_response = get_json_from_string(resposta_mock)
+
+    print("****************************************")
+    print("Resposta do GPT: \n")
+    print(json_response)
+    print("****************************************")
 
     return json_response
 
@@ -186,3 +186,5 @@ def add_law_references(structured_output: list) -> list:
                         
         else:
             structured_output[idx]['law_references'] = None
+
+    return structured_output
