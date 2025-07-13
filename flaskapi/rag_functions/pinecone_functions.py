@@ -27,6 +27,8 @@ def initialize_pinecone(api_key: str = None, index_name: str = "path-value-db"):
     
     # Initialize Pinecone
     pc = Pinecone(api_key=api_key)
+
+    print("\n\nindex list:", pc.list_indexes().names())
     
     # Create index if it doesn't exist
     if index_name not in pc.list_indexes().names():

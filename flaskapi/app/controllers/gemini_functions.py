@@ -6,8 +6,10 @@ from dotenv import load_dotenv
 from rag_functions.pinecone_functions import query_db
 import os
 import json
-
-with open("app\data\law_descriptions_bonitinho.json", "r") as file:
+# without os.path.join
+# with open("app\data\law_descriptions_bonitinho.json", "r") as file:
+# with os.path.join
+with open(os.path.join("app", "data", "law_descriptions_bonitinho.json"), "r") as file:
     law_descriptions = json.load(file)
 
 load_dotenv()
@@ -133,7 +135,7 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
         nodes = query_db(
             query=response.choices[0].message.content,
             index_name="codigo-transito-brasileiro",
-            top_k=1
+            k=1
         )
 
         law_reference = nodes[0].metadata['path']
@@ -146,4 +148,17 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
         resposta_mock = """"
             [ { "Placa": "PCF 9041", "Modelo": "Toyota Corolla (geração 2014-2019)", "Cor": "Prata", "Comportamento observado": "Tentativa de ultrapassagem em local proibido, invadindo a faixa de sentido contrário e realizando manobra evasiva perigosa.", "Possível infração": "sim" } ]
         """
-        return {resposta_mock, "ticket": None, "law-reference": law_reference}
+
+        nodes = query_db(
+            query=resposta_mock,
+            index_name="codigo-transito-brasileiro",
+            k=1
+        )
+
+        print("nodes:", nodes)
+
+        law_reference = nodes[0].metadata['path']
+
+        ticket = law_descriptions[law_reference]
+
+        return {"analysis": resposta_mock, "ticket": ticket, "law-reference": law_reference}
