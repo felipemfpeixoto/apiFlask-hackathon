@@ -11,11 +11,15 @@ from app.controllers._utils import get_json_from_string
 
 with open(os.path.join("app", "data", "law_descriptions_bonitinho.json"), "r", encoding="utf8") as file:
     law_descriptions = json.load(file)
+    
+with open(os.path.join("app", "data", "law_personalized_prompts.json"), "r", encoding="utf8") as file:
+    law_personalized_prompts = json.load(file)
 
 load_dotenv()
 
 
-def extrair_placa(mocked: bool = True, video_path: str = None):
+def extrair_placa(mocked: bool = True, video_path: str = None,
+                  attention_law_references: list = [], video_filename: str = None) -> list:
     # Google Gemini API Key
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -33,10 +37,15 @@ def extrair_placa(mocked: bool = True, video_path: str = None):
         # video_path = "/Users/infra/Documents/Adapta Challenge/projeto/apiFlask/flaskapi/app/data/ultrapassagens16s.mp4"
 
         # Upload do vídeo
-        video_file = client.files.upload(file=video_path)
-        file_name = video_file.name
+        if video_filename is None:
+            video_file = client.files.upload(file=video_path)
+            file_name = video_file.name
+        else:
+            file_name = video_filename
         
-        if detect_deepfake_video(video_path) == "Fake":
+        
+        # No need to verify deepfake for images that are already uploaded
+        if video_filename is None and detect_deepfake_video(video_path) == "Fake":
             print("⚠️ Vídeo detectado como Deepfake. Análise não realizada.")
             return {"status": "error", "message": "Vídeo detectado como Deepfake."}
 
@@ -47,16 +56,32 @@ def extrair_placa(mocked: bool = True, video_path: str = None):
             video_file = client.files.get(name=file_name)
 
         # Análise com Gemini
-        gemini_prompt = (
-            "Gere uma descrição do que aconteceu no vídeo. Leve em conta os detalhes, como de que forma "
-            "a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), "
-            "e outros detalhes que possam ser importantes. Me dê também a placa e modelo dos veículos identificados."
-        )
+        if attention_law_references == []:
+            gemini_prompt = (
+                "Gere uma descrição do que aconteceu no vídeo. Leve em conta os detalhes, como de que forma "
+                "a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), "
+                "e outros detalhes que possam ser importantes. Me dê também a placa e modelo dos veículos identificados."
+            )
+        else:
+            observations = "\n\n"
+            
+            for law_reference in attention_law_references:
+                if law_reference in law_personalized_prompts:
+                    observations += "- " + law_personalized_prompts[law_reference] + "\n"
+                    
+            gemini_prompt = (
+                "Gere uma descrição do que aconteceu no vídeo, levando em conta os detalhes, como de que forma "
+                "a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), "
+                "e outros detalhes que possam ser importantes. Me dê também a placa e modelo dos veículos identificados.\n\n"
+                f"Observações para se atentar se ocorrem no vídeo ou não:{observations}"
+            )
+        
         gemini_response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[gemini_prompt, video_file]
         )
         gemini_text = gemini_response.text
+        
     else:
         print("\n\n****** ENTROU NO MOCKED *********\n\n")
         gemini_text = get_gemini_response_mock()
@@ -68,7 +93,15 @@ def extrair_placa(mocked: bool = True, video_path: str = None):
 
     structured_output = interpretar_com_gpt(gemini_text=gemini_text, mock=False)
     
-    final_output = add_law_references(structured_output)
+    retry_with_law_references, final_output = add_law_references(structured_output, 
+     pre_law_references=attention_law_references)
+
+    if len(retry_with_law_references) > 0:
+        return extrair_placa(mocked=mocked, video_path=video_path, attention_law_references=retry_with_law_references, video_filename=video_filename)
+    
+    for idx, item in enumerate(final_output):
+        if item['Possível infração'] == "não":
+            item['Comportamento observado'] = item['Comportamento observado'].replace("comportamento observado", "comportamento observado")
 
     print("📋 Análise estruturada para infrações:\n", final_output)
 
@@ -140,9 +173,9 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
             ],
             temperature=0.3
         )
-        
+
         json_response = get_json_from_string(response.choices[0].message.content.strip())
-    
+
     else:
         print("Entrou no mock")
         resposta_mock = """"
@@ -158,36 +191,49 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
 
     return json_response
 
-def add_law_references(structured_output: list) -> list:
+def add_law_references(structured_output: list, pre_law_references: list = []) -> tuple[bool, list]:
     """Add law references to the structured output based on the infractions detected via RAG."""
     
     for idx, item in enumerate(structured_output):
-        if item['Possível infração'] == "sim":
-            nodes = query_db(
-                query=item['Comportamento observado'],
-                index_name="codigo-transito-brasileiro",
-                k=5
-            )
+        print(item['Comportamento observado'])
+        nodes = query_db(
+            query=item['Comportamento observado'],
+            index_name="codigo-transito-brasileiro",
+            k=10
+        )
+        
+        similar_nodes =  [node for node in nodes if node['score'] > 0.6]
+        
+        
+        if item['Possível infração'].lower() == "sim":
 
-            # list comprehension style
-            # law_references = [{'law_reference': node['path'],
-            #                    'ticket': law_descriptions[node['path']],
-            #                    'score': node['score']} for node in nodes if node['score'] > 0.1]
             
-            # non list comprehension style
+            # if you have pre_law_references and the query still returns no nodes, assumes there are no infractions and the model hallucinated
+            if len(pre_law_references) > 0 and len(similar_nodes) == 0:
+                return [], None
+
+            print(structured_output)
+
             law_references = []
-            for node in nodes:
-                if node['score'] > 0.6:
-                    law_reference = {
-                        'law_reference': node['path'],
-                        'ticket': law_descriptions[node['path']],
-                        'score': node['score']
-                    }
-                    law_references.append(law_reference)
+            for node in similar_nodes:
+                law_reference = {
+                    'law_reference': node['path'],
+                    'ticket': law_descriptions[node['path']],
+                    'score': node['score']
+                }
+                law_references.append(law_reference)
+            
+            print(similar_nodes)
+            print(law_references)
             
             structured_output[idx]['law_references'] = law_references
-                        
-        else:
-            structured_output[idx]['law_references'] = None
+            
+            return [], structured_output
+            
+        elif len(similar_nodes) > 0:
+            law_references_to_return = [node['path'] for node in similar_nodes]
+            return law_references_to_return, None
+        
+            
 
-    return structured_output
+    
