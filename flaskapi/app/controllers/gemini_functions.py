@@ -63,7 +63,9 @@ def extrair_placa(mocked: bool = True, video_path: str = None):
 
     print("\n\n***************************************************************\n\n")
 
-    final_output = interpretar_com_gpt(gemini_text=gemini_text)
+    structured_output = interpretar_com_gpt(gemini_text=gemini_text)
+    
+    final_output = add_law_references(structured_output)
 
     print("📋 Análise estruturada para infrações:\n", final_output)
 
@@ -150,11 +152,13 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
         """
 
         json_response = get_json_from_string(resposta_mock)
-        
-    print(json_response)
 
-    for idx,item in enumerate(json_response):
-        print(f"Item {idx}: {item}")
+    return json_response
+
+def add_law_references(structured_output: list) -> list:
+    """Add law references to the structured output based on the infractions detected via RAG."""
+    
+    for idx, item in enumerate(structured_output):
         if item['Possível infração'] == "sim":
             nodes = query_db(
                 query=item['Comportamento observado'],
@@ -178,9 +182,7 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
                     }
                     law_references.append(law_reference)
             
-            json_response[idx]['law_references'] = law_references
+            structured_output[idx]['law_references'] = law_references
                         
         else:
-            json_response[idx]['law_references'] = None
-
-    return json_response
+            structured_output[idx]['law_references'] = None
