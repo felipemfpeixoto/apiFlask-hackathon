@@ -4,6 +4,7 @@ import requests
 from urllib.parse import urlparse
 from .gemini_functions import extrair_placa
 from firebase_module import inicializar_firebase, salvar_envio_no_firestore
+from datetime import datetime
 
 def raiz_requisicao():
     print("\n\n****************** CHAMOU EXEMPLO ******************\n\n")
@@ -72,7 +73,7 @@ def raiz_requisicao():
     intancia_banco = {
         "userID": user_id,
         "videoURL": video_url,
-        "date": date,
+        "date": datetime.now(), # MARK: Não sei se ta funcionando
         "location": location,
         "infracao": final_output[0],
         "status": "pendente"
