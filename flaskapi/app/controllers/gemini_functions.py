@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 from rag_functions.pinecone_functions import query_db
 import os
 import json
+from app.controllers._utils import get_json_from_string
 # without os.path.join
 # with open("app\data\law_descriptions_bonitinho.json", "r") as file:
 # with os.path.join
-with open(os.path.join("app", "data", "law_descriptions_bonitinho.json"), "r") as file:
+with open(os.path.join("app", "data", "law_descriptions_bonitinho.json"), "r", encoding="utf8") as file:
     law_descriptions = json.load(file)
 
 load_dotenv()
@@ -131,34 +132,47 @@ def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
             model="gemini-2.5-flash",
             contents=["Gere uma descrição do que aconteceu no vídeo. Leve em conta os detalhes, como de que forma a ultrapassagem foi feita, se era permitida naquele local (segundo sinalização no piso, como faixa dupla contínua ou placa), e outros detalhes que possam ser importantes. Me de também a placa e modelo dos veículos identificados", video_file]
         )
-
-        nodes = query_db(
-            query=response.choices[0].message.content,
-            index_name="codigo-transito-brasileiro",
-            k=1
-        )
-
-        law_reference = nodes[0].metadata['path']
-
-        ticket = law_descriptions[law_reference]
-
-        return {"analysis": response.choices[0].message.content, "ticket": ticket, "law-reference": law_reference}
+        
+        json_response = get_json_from_string(response.choices[0].message.content.strip())
+    
     else:
         print("Entrou no mock")
         resposta_mock = """"
-            [ { "Placa": "PCF 9041", "Modelo": "Toyota Corolla (geração 2014-2019)", "Cor": "Prata", "Comportamento observado": "Tentativa de ultrapassagem em local proibido, invadindo a faixa de sentido contrário e realizando manobra evasiva perigosa.", "Possível infração": "sim" } ]
+            [ { "Placa": "PCF 9041", "Modelo": "Toyota Corolla (geração 2014-2019)", "Cor": "Prata", "Comportamento observado": "Tentativa de ultrapassagem em local proibido com faixa dupla contínua, invadindo a faixa de sentido contrário e realizando manobra evasiva perigosa.", "Possível infração": "sim" } ]
         """
 
-        nodes = query_db(
-            query=resposta_mock,
-            index_name="codigo-transito-brasileiro",
-            k=1
-        )
+        json_response = get_json_from_string(resposta_mock)
+        
+    print(json_response)
 
-        print("nodes:", nodes)
+    for idx,item in enumerate(json_response):
+        print(f"Item {idx}: {item}")
+        if item['Possível infração'] == "sim":
+            nodes = query_db(
+                query=item['Comportamento observado'],
+                index_name="codigo-transito-brasileiro",
+                k=5
+            )
 
-        law_reference = nodes[0].metadata['path']
+            # list comprehension style
+            # law_references = [{'law_reference': node['path'],
+            #                    'ticket': law_descriptions[node['path']],
+            #                    'score': node['score']} for node in nodes if node['score'] > 0.1]
+            
+            # non list comprehension style
+            law_references = []
+            for node in nodes:
+                if node['score'] > 0.6:
+                    law_reference = {
+                        'law_reference': node['path'],
+                        'ticket': law_descriptions[node['path']],
+                        'score': node['score']
+                    }
+                    law_references.append(law_reference)
+            
+            json_response[idx]['law_references'] = law_references
+                        
+        else:
+            json_response[idx]['law_references'] = None
 
-        ticket = law_descriptions[law_reference]
-
-        return {"analysis": resposta_mock, "ticket": ticket, "law-reference": law_reference}
+    return json_response

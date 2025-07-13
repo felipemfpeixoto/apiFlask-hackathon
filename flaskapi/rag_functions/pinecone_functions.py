@@ -1,29 +1,29 @@
 import os
 import hashlib
 from pinecone import Pinecone, ServerlessSpec
-from sentence_transformers import SentenceTransformer
+from openai import OpenAI
 from dotenv import load_dotenv
 from typing import Dict, List
 import time
 
 load_dotenv()
 
-# huggingface_hub login
-from huggingface_hub import login
-login(token=os.getenv('HUGGINGFACE_HUB_TOKEN'))
-
 # Global variables for reuse
 pc = None
 index = None
-model = None
+openai_client = None
 
 def initialize_pinecone(api_key: str = None, index_name: str = "path-value-db"):
-    """Initialize Pinecone connection and model"""
-    global pc, index, model
+    """Initialize Pinecone connection and OpenAI client"""
+    global pc, index, openai_client
     
     api_key = api_key or os.getenv('PINECONE_API_KEY')
     if not api_key:
         raise ValueError("Set PINECONE_API_KEY environment variable or pass api_key")
+    
+    openai_api_key = os.getenv('OPENAI_API_KEY')
+    if not openai_api_key:
+        raise ValueError("Set OPENAI_API_KEY environment variable")
     
     # Initialize Pinecone
     pc = Pinecone(api_key=api_key)
@@ -35,7 +35,7 @@ def initialize_pinecone(api_key: str = None, index_name: str = "path-value-db"):
         print(f"Creating index: {index_name}")
         pc.create_index(
             name=index_name,
-            dimension=384,  # all-MiniLM-L6-v2 dimension
+            dimension=3072,  # text-embedding-3-large dimension
             metric='cosine',
             spec=ServerlessSpec(cloud='aws', region='us-east-1')
         )
@@ -44,10 +44,23 @@ def initialize_pinecone(api_key: str = None, index_name: str = "path-value-db"):
     # Connect to index
     index = pc.Index(index_name)
     
-    # Initialize embedding model
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    # Initialize OpenAI client
+    openai_client = OpenAI(api_key=openai_api_key)
     
     print(f"Connected to Pinecone index: {index_name}")
+
+def get_embedding(text: str) -> List[float]:
+    """Get embedding from OpenAI text-embedding-3-large model"""
+    global openai_client
+    
+    if openai_client is None:
+        raise ValueError("OpenAI client not initialized. Call initialize_pinecone() first.")
+    
+    response = openai_client.embeddings.create(
+        model="text-embedding-3-large",
+        input=text
+    )
+    return response.data[0].embedding
 
 def upload_dict(data: Dict[str, str], api_key: str = None, index_name: str = "path-value-db"):
     """
@@ -58,10 +71,10 @@ def upload_dict(data: Dict[str, str], api_key: str = None, index_name: str = "pa
         api_key: Pinecone API key (optional if set in env)
         index_name: Name of the Pinecone index
     """
-    global pc, index, model
+    global pc, index, openai_client
     
     # Initialize if not already done
-    if pc is None or index is None or model is None:
+    if pc is None or index is None or openai_client is None:
         initialize_pinecone(api_key, index_name)
     
     print(f"Uploading {len(data)} entries to vector database...")
@@ -71,7 +84,7 @@ def upload_dict(data: Dict[str, str], api_key: str = None, index_name: str = "pa
     for path, value in data.items():
         # Create embedding from combined path and value
         text = f"Path: {path} Content: {value}"
-        embedding = model.encode([text])[0].tolist()
+        embedding = get_embedding(text)
         
         # Create unique ID from path
         vector_id = hashlib.md5(path.encode()).hexdigest()
@@ -111,14 +124,14 @@ def query_db(query: str, k: int = 5, api_key: str = None, index_name: str = "pat
     Returns:
         List of dictionaries with path, value, and similarity score
     """
-    global pc, index, model
+    global pc, index, openai_client
     
     # Initialize if not already done
-    if pc is None or index is None or model is None:
+    if pc is None or index is None or openai_client is None:
         initialize_pinecone(api_key, index_name)
     
     # Create query embedding
-    query_embedding = model.encode([query])[0].tolist()
+    query_embedding = get_embedding(query)
     
     # Search
     results = index.query(
