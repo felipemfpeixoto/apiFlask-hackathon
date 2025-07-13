@@ -16,7 +16,7 @@ with open(os.path.join("app", "data", "law_descriptions_bonitinho.json"), "r", e
 load_dotenv()
 
 
-def extrair_placa(mocked: bool = True):
+def extrair_placa(mocked: bool = True, video_path: str = None):
     # Google Gemini API Key
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -31,7 +31,7 @@ def extrair_placa(mocked: bool = True):
     if not mocked:
         client = genai.Client(api_key=api_key)
 
-        video_path = "/Users/infra/Documents/Adapta Challenge/projeto/apiFlask/flaskapi/app/data/ultrapassagens16s.mp4"
+        # video_path = "/Users/infra/Documents/Adapta Challenge/projeto/apiFlask/flaskapi/app/data/ultrapassagens16s.mp4"
 
         # Upload do vídeo
         video_file = client.files.upload(file=video_path)
@@ -73,33 +73,41 @@ def extrair_placa(mocked: bool = True):
 
 def get_gemini_response_mock():
     return """"
-    O vídeo, filmado em um dia chuvoso com pista molhada, mostra uma sequência de veículos em uma rodovia de mão dupla, com uma faixa contínua dupla amarela no centro, indicando **proibição de ultrapassagem** para ambos os sentidos.
+    Com base no vídeo, segue a descrição detalhada do ocorrido:
 
-**Descrição do que aconteceu:**
+**Descrição do Ocorrido:**
 
-1.  **Cenário Inicial:** O vídeo começa com a visão da perspectiva de um veículo (aparentemente um carro, filmando sobre outro carro que está à frente), que está seguindo um comboio na rodovia. À frente do veículo que está sendo filmado (um Toyota Corolla prata), há um caminhão-baú grande de cor branca, e à frente deste, mais dois veículos (uma caminhonete escura e outra mais clara). A pista está visivelmente molhada e há pouca visibilidade devido à chuva e neblina.
-2.  **Tentativa de Ultrapassagem:** Por volta de 0:05, o Toyota Corolla prata, que está logo à frente do veículo do cinegrafista, inicia uma manobra de ultrapassagem sobre o caminhão-baú. Ele se desloca para a faixa de sentido contrário, invadindo-a completamente.
-3.  **Situação de Perigo:** Enquanto o Corolla está na contramão ao lado do caminhão, um veículo (um carro de cor clara) surge na pista no sentido contrário.
-4.  **Manobra de Abortagem:** O motorista do Corolla, percebendo a aproximação perigosa do veículo na contramão, é forçado a abortar bruscamente a ultrapassagem. Ele freia e esterça violentamente para a direita, retornando à sua faixa original e evitando por pouco uma colisão tanto com o caminhão-baú (que ele quase atinge na traseira) quanto com o veículo que vinha no sentido contrário.
-5.  **Continuação:** Após a manobra arriscada, o Corolla se alinha novamente atrás do caminhão, e o comboio continua na estrada molhada. Outro veículo se aproxima no sentido contrário logo em seguida.
+O vídeo é gravado de uma câmera posicionada no topo da cabine de um caminhão (aparentemente uma carreta), mostrando a perspectiva para frente. A pista está molhada, indicando que está chovendo ou choveu recentemente, e há spray de água sendo levantado pelos veículos.
 
-**Detalhes Importantes:**
+A rodovia é de pista simples, com uma faixa em cada sentido. A sinalização horizontal no asfalto é de **faixa dupla contínua amarela**, indicando que a ultrapassagem é proibida para ambos os sentidos de tráfego naquele trecho. Além disso, a manobra ocorre em uma **curva**, o que agrava a situação de perigo e é outro fator que, por si só, proíbe a ultrapassagem segundo o Código de Trânsito Brasileiro (CTB).
 
-*   **Forma da Ultrapassagem:** A ultrapassagem foi feita pela esquerda, invadindo a faixa de rolamento do sentido contrário.
-*   **Permissão no Local:** A ultrapassagem **não era permitida** no local. A sinalização de solo, uma **faixa dupla contínua amarela**, indica claramente a proibição de ultrapassagem para ambos os sentidos, conforme o Código de Trânsito Brasileiro. Além disso, as condições climáticas (chuva, pista molhada, baixa visibilidade) tornavam a manobra ainda mais perigosa, independentemente da sinalização.
-*   **Consequências Imediatas:** A imprudência resultou em uma situação de alto risco, com a necessidade de uma manobra evasiva perigosa para evitar uma colisão múltipla.
+Um veículo branco, um sedan, tenta realizar uma ultrapassagem arriscada. Ele sai de trás de outro caminhão (um caminhão-tanque de cor escura, que está à frente do caminhão que filma) e avança para a contramão para tentar ultrapassar ambos os caminhões.
 
----
+No momento em que o veículo branco está na contramão, se aproximando da lateral do caminhão que filma e já tendo ultrapassado o caminhão-tanque, um **veículo vindo em sentido contrário** (um carro de cor clara, possivelmente um SUV ou hatch) aparece na pista.
 
-**Identificação de Veículos:**
+Sem espaço para completar a ultrapassagem e com o veículo vindo na direção oposta, o carro branco é forçado a "cortar" bruscamente e se espremer entre o caminhão que filma e o caminhão-tanque que ele havia acabado de ultrapassar. A manobra é extremamente perigosa, com o carro branco ficando a centímetros de colidir com a lateral do caminhão que filma e o veículo que vinha na contramão. Ele consegue se encaixar na faixa de rolamento por pouco, evitando uma colisão frontal com o veículo que se aproximava e uma possível colisão lateral com o caminhão que o filmava.
 
-*   **Veículo que realiza a ultrapassagem (Sedan Prata):**
-    *   **Modelo:** Toyota Corolla (geração 2014-2019, conhecida como modelo "Altis" ou "GLi" no Brasil).
+**Legalidade da Manobra:**
+
+A ultrapassagem realizada pelo veículo branco foi **flagrantemente ilegal e extremamente perigosa** por vários motivos:
+1.  **Faixa Dupla Contínua Amarela:** Proíbe expressamente a ultrapassagem para ambos os sentidos de tráfego.
+2.  **Curva:** Ultrapassagens em curvas são proibidas devido à visibilidade reduzida e ao alto risco de colisão frontal.
+3.  **Presença de Veículo em Sentido Contário:** O condutor não avaliou a presença de tráfego no sentido oposto antes de iniciar a manobra, colocando-se e a terceiros em risco iminente.
+4.  **Condições Climáticas/Visibilidade:** A pista molhada e a provável chuva reduzem a aderência dos pneus e a visibilidade, tornando manobras arriscadas ainda mais perigosas.
+
+**Veículos Identificados:**
+
+*   **Veículo que realiza a ultrapassagem (sedan branco):**
     *   **Placa:** PCF 9041
-*   **Caminhão-Baú (Grande, Branco):**
-    *   **Modelo:** Não é possível identificar o modelo exato da cabine, mas o baú é da empresa **"TRLog"** (com o site "www.tfr.com.br" visível) e possui a marca **"RANDON"** (fabricante de implementos rodoviários) visível no para-lama traseiro.
-    *   **Placa:** Partes da placa são visíveis (ex: "012-0436" por volta de 0:04), mas não é possível ler a placa completa com clareza para identificação.
-*   **Veículo do Cinegrafista:** Não é possível identificar o modelo ou a placa do veículo de onde o vídeo foi filmado, mas a perspectiva sugere que é um carro, provavelmente um sedan, que segue de perto o Toyota Corolla.
+    *   **Modelo:** Toyota Corolla (geração que circulou aproximadamente entre 2008 e 2014, conhecido como "Brad Pitt" no Brasil, ou a geração imediatamente anterior ao modelo que começou a ter LEDs nos faróis traseiros)
+
+*   **Caminhão que grava o vídeo:**
+    *   **Placa:** Não visível (somente a parte superior do baú/carroceria).
+    *   **Modelo:** Não é possível determinar o modelo exato do caminhão, mas o baú/carroceria traseira possui uma marcação com o site **"www.igr.com.br"**, sugerindo ser um veículo da empresa IGR Transportes.
+
+*   **Caminhão-tanque sendo ultrapassado:**
+    *   **Placa:** Não visível.
+    *   **Modelo:** Não é possível determinar o modelo ou marca, apenas que é um caminhão-tanque de cor escura.
     """
 
 def interpretar_com_gpt(gemini_text: str, mock: bool = True) -> str:
