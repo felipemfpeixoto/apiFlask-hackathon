@@ -20,10 +20,14 @@ cd flaskapi-hackathon
 Crie um arquivo chamado `.env` na raiz do projeto com o seguinte conteúdo:
 
 ```env
-GEMINI_API_KEY=sua_api_key_aqui
+PINECONE_API_KEY=SUA_CHAVE_PINECONE
+GEMINI_API_KEY=SUA_CHAVE_GEMINI
+HUGGINGFACE_HUB_TOKEN=SEU_TOKEN_HUGGINGFACE_HUB
+OPENAI_API_KEY=SUA_CHAVE_OPENAI
+HOST_IP=SEU_HOST_IP
 ```
 
-> Substitua `sua_api_key_aqui` pela sua chave de API Gemini.
+> Substitua os campos acima por suas credenciais para os respectivos serviços
 
 ---
 
@@ -42,25 +46,23 @@ Depois, instale as dependências:
 ```bash
 pip install -r requirements.txt
 ```
+---
+
+
+### 4. Configure o acessso ao firebase
+
+Gere um ambiente firebase e conecte-o exportando o json de credenciais e posicionando na raíz do projeto como `firebaseCredentials.json`
 
 ---
 
-### 4. Rode a API
+### 5. Rode a API
 
 ```bash
 python3 main.py
 ```
 
-A API estará disponível em: [http://localhost:5000](http://localhost:5000)
-
----
-
-## 📝 Observações
-
-- O vídeo de entrada deve estar no diretório `app/data/` ou ser enviado conforme implementação.
-
 ---
 
 ## 📫 Contato
 
-Em caso de dúvidas, sugestões ou bugs, entre em contato via [seuemail@exemplo.com] ou abra uma issue neste repositório.
+Em caso de dúvidas, sugestões ou bugs, abra uma issue neste repositório.
