@@ -3,6 +3,7 @@ import os
 import requests
 from urllib.parse import urlparse
 from .gemini_functions import extrair_placa
+from firebase_module import inicializar_firebase, salvar_envio_no_firestore
 
 def raiz_requisicao():
     print("\n\n****************** CHAMOU EXEMPLO ******************\n\n")
@@ -10,6 +11,8 @@ def raiz_requisicao():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Requisição sem JSON válido"}), 400
+    
+    inicializar_firebase()
 
     user_id = data.get("userID")
     video_url = data.get("videoURL")
@@ -21,9 +24,60 @@ def raiz_requisicao():
     print(f"date: {date}")
     print(f"location: {location}")
 
+    # MARK: Aqui, retornar para o usuário e continuar a execução das APIs
+
     caminho_arquivo = baixar_video(video_url)
 
-    extrair_placa(mocked=False, video_path=caminho_arquivo)
+    final_output = extrair_placa(mocked=False, video_path=caminho_arquivo)
+
+    """"
+    [
+        {
+            'Placa': 'PCF 9041', 
+            'Modelo': 'Toyota Corolla (geração 2014-2019)', 
+            'Cor': 'Prata', 
+            'Comportamento observado': 'Tentativa de ultrapassagem em local proibido com faixa dupla contínua, invadindo a faixa de sentido contrário e realizando manobra evasiva perigosa.', 
+            'Possível infração': 'sim', 
+            'law_references': [
+                {
+                    'law_reference': 'CAPÍTULO XV - Art. 203 - V', 
+                    'ticket': 'Ultrapassar pela contramão onde houver linha dupla contínua ou simples contínua amarela.', 
+                    'score': 0.650156438
+                }, 
+                {
+                    'law_reference': 'CAPÍTULO XV - Art. 191 - Parágrafo único', 
+                    'ticket': 'Forçar passagem entre veículos que, em sentidos opostos, estão próximos na ultrapassagem, com reincidência em 12 meses (multa em dobro).', 
+                    'score': 0.645095587
+                }, 
+                {
+                    'law_reference': 'CAPÍTULO XV - Art. 203 - I', 
+                    'ticket': 'Ultrapassar pela contramão em curvas, aclives e declives sem visibilidade.', 
+                    'score': 0.622634828    
+                }, 
+                {
+                    'law_reference': 'CAPÍTULO XV - Art. 203 - IV', 
+                    'ticket': 'Ultrapassar pela contramão veículo parado em fila (sinais, porteiras, cruzamentos, impedimentos).', 
+                    'score': 0.616180301
+                }, 
+                {
+                    'law_reference': 'CAPÍTULO XV - Art. 186 - II', 
+                    'ticket': 'Transitar pela contramão em vias de sentido único de circulação.', 
+                    'score': 0.615073442
+                }
+            ]
+        }
+    ]
+    """
+
+    intancia_banco = {
+        "userID": user_id,
+        "videoURL": video_url,
+        "date": date,
+        "location": location,
+        "infracao": final_output[0]
+    }
+
+    salvar_envio_no_firestore(dados_envio=intancia_banco)
 
     apagar_video(caminho_arquivo)
 
